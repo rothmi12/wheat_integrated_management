@@ -37,12 +37,14 @@ colnames(master.df)
 ```
 
 ```{r, Acres planted}
-planted.df <- read.csv2("planted_acres_and_yield.csv", 
+planted.df <- read.csv2("planted_acres_yield_price.csv", 
                         sep = ",", header = T)
 planted.df$Year
 planted.df$WHEAT_ACRES_PLANTED <-
   as.numeric(as.character(planted.df$WHEAT_ACRES_PLANTED))
 planted.df$WHEAT_BUSHELS_PRODUCED
+planted.df$WHEAT_PRICE_RECIEVED_USD_BUSHEL <- 
+  as.numeric(as.character(planted.df$WHEAT_PRICE_RECIEVED_USD_BUSHEL))
 #Convert acres planted to hectares (divide acres by 2.471)
 planted.df$WHEAT_HECTARES_PLANTED <- planted.df$WHEAT_ACRES_PLANTED/2.471
 #Divide by 1 thousand to get in decent units
@@ -53,18 +55,18 @@ planted.df$WHEAT_TONNES_PRODUCED <- planted.df$WHEAT_BUSHELS_PRODUCED/36.74
 planted.df$WHEAT_TONNES_PRODUCED <- planted.df$WHEAT_TONNES_PRODUCED/1000000
 library(ggplot2)
 ggplot(planted.df, aes(x=Year)) +
-  geom_smooth(aes(y = WHEAT_HECTARES_PLANTED), 
-            colour = "black", linetype = 1, size = 2) +
-  geom_abline(slope = -0.3281, intercept = 681.9796, 
-              linetype = 2, colour = "black") +
-  geom_text(x=2017, y=16.5, label="y = -0.33x + 682.0 \n P < 0.001",
-            size = 8) +
-  geom_smooth(aes(y = WHEAT_TONNES_PRODUCED/2), 
-            colour = "grey60", linetype = 1, size = 2) +
-  geom_abline(slope = (-0.09773/2), intercept = (252.85130/2),
-              linetype = 2, colour = "grey60") +
-  geom_text(x=2017.5, y=32, label="y = -0.10x + 252.9 \n P = 0.68",
-            colour = "grey60", size = 8) +
+  geom_point(aes(y = WHEAT_HECTARES_PLANTED), size = 5, shape = 16) +
+  stat_smooth(aes(y = WHEAT_HECTARES_PLANTED), 
+              method = "lm", formula = y ~ x + I(x^2), 
+              colour = "black", linetype = 1, size = 2) +
+  #geom_text(x=2017, y=16.5, label="y = -0.33x + 682.0 \n P < 0.001",
+  #          size = 8) +
+  geom_point(aes(y = WHEAT_TONNES_PRODUCED/2), size = 5, shape = 17, 
+             colour = "grey60") +
+  geom_abline(slope = (-0.09773083/2), intercept = (252.85130202/2),
+              colour = "grey60", linetype = 2, size = 1) +
+  #geom_text(x=2017.5, y=32, label="y = -0.10x + 252.9 \n P = 0.68",
+  #          colour = "grey60", size = 8) +
   ylab("Wheat hectares planted (millions)") +
   scale_y_continuous(sec.axis = sec_axis(~.*2, name = "Wheat yield (millions of tonnes)")) +
   theme_bw() + theme(strip.text.x = element_text(size=8, face = "bold"),
@@ -75,14 +77,19 @@ ggplot(planted.df, aes(x=Year)) +
 
 plant.lm <- lm(WHEAT_HECTARES_PLANTED~Year, planted.df)
 summary(plant.lm)
-plant.lm$coefficients
-confint(plant.lm, level = 0.95)
+planted.df$Year2 <- planted.df$Year^2
+plant.quad <- lm(WHEAT_HECTARES_PLANTED~Year + Year2, planted.df)
+summary(plant.quad)
+#Quadratic fit is better for hectares planted
 
 yield.lm <- lm(WHEAT_TONNES_PRODUCED~Year, planted.df)
 summary(yield.lm)
 yield.lm$coefficients
-confint(yield.lm, level = 0.95)
-
+yield.quad <- lm(WHEAT_TONNES_PRODUCED~Year + Year2, planted.df)
+summary(yield.quad)
+planted.df$Year3 <- planted.df$Year^3
+yield.cubic <- lm(WHEAT_TONNES_PRODUCED~Year + Year2 + Year3, planted.df)
+summary(yield.cubic)
 ```
 
 ```{r, get means}
