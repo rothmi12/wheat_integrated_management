@@ -7,6 +7,7 @@ output: html_document
 
 ```{r, import data}
 master.df <- read.csv2("wheat_IM_data.csv", sep = ",", header = T)
+colnames(master.df)
 master.df$Year <- as.factor(master.df$Year)
 master.df$weight_lbs <- as.numeric(as.character(master.df$weight_lbs))
 master.df$Percent_Moisture <- 
@@ -68,7 +69,7 @@ ggplot(planted.df, aes(x=Year)) +
   #geom_text(x=2017.5, y=32, label="y = -0.10x + 252.9 \n P = 0.68",
   #          colour = "grey60", size = 8) +
   ylab("Wheat hectares planted (millions)") +
-  scale_y_continuous(sec.axis = sec_axis(~.*2, name = "Wheat yield (millions of tonnes)")) +
+  scale_y_continuous(sec.axis = sec_axis(~.*2, name = "Wheat production (millions of tonnes)")) +
   theme_bw() + theme(strip.text.x = element_text(size=8, face = "bold"),
                      axis.text.x=element_text(size=24),
                      axis.text.y=element_text(size=24),
@@ -92,29 +93,79 @@ yield.cubic <- lm(WHEAT_TONNES_PRODUCED~Year + Year2 + Year3, planted.df)
 summary(yield.cubic)
 ```
 
-```{r, get means}
+```{r, get means, stats}
 colnames(master.df)
-get_mean <- function(var, man) {
+#Use this function to get variety x management x year means
+#Just replace "Pro 200" with whatever variety you're interested in
+get_mean <- function(var, man, yr) {
   temp.df <- with(master.df, master.df[variety == as.character(var) & 
-                                       management == as.character(man),])
-  mean(na.omit(temp.df$Stripe_Rust_DX_beta))
+                                       management == as.character(man) &
+                                       Year == as.character(yr),])
+  mean(na.omit(temp.df$Test_weight_kg_hL))
 }
-get_mean("735","Current")
-get_mean("735","MidLevel")
-get_mean("735","HighLevel")
-levels(master.df$variety)
+get_mean("Pro 200","Current","2016")
+get_mean("Pro 200","MidLevel","2016")
+get_mean("Pro 200","HighLevel","2016")
+get_mean("Pro 200","Current","2017")
+get_mean("Pro 200","MidLevel","2017")
+get_mean("Pro 200","HighLevel","2017")
+get_mean("Pro 200","Current","2018")
+get_mean("Pro 200","MidLevel","2018")
+get_mean("Pro 200","HighLevel","2018")
+get_mean("Pro 200","Current","2019")
+get_mean("Pro 200","MidLevel","2019")
+get_mean("Pro 200","HighLevel","2019")
 
-get_mean2 <- function(man) {
-  temp.df <- master.df[master.df$management == as.character(man),]
-  mean(na.omit(temp.df$Yield_bushels_acre))
+#Use this function to variety means across years
+#Just replace "Pro 200" with whatever variety you're interested in
+get_mean2 <- function(var) {
+  temp.df <- with(master.df, master.df[variety == as.character(var),])
+  mean(na.omit(temp.df$Test_weight_kg_hL))
 }
-get_mean2("Current")
-get_mean2("MidLevel")
-get_mean2("HighLevel")
+get_mean2("Pro 200")
+
+#Get Tukey group letters for management effects of variety within year
+#Just replace "Pro 200" with whatever variety you're interested in
+AOVTukey <- function(var, yr) {
+  temp.df <- with(master.df, master.df[variety == as.character(var) &
+                                       Year == as.character(yr),])
+  nova <- aov(Test_weight_kg_hL ~ management, data = temp.df)
+  TukeyHSD(nova, ordered = TRUE)
+}
+AOVTukey("Pro 200", "2016")
+AOVTukey("Pro 200", "2017")
+AOVTukey("Pro 200", "2018")
+AOVTukey("Pro 200", "2019")
+
+#Get Tukey group letters for variety effects across years
+library(emmeans)
+library(multcomp)
+allvar_lm <- lm(Test_weight_kg_hL ~ variety, data = master.df)
+allvar_anova <- emmeans(allvar_lm, ~variety)
+allvar_anova_results <- multcomp::cld(allvar_anova, 
+                            alpha = 0.05, 
+                            adjust = "tuk", 
+                            Letters = letters, 
+                            reversed = TRUE, 
+                            details = TRUE)
+allvar_anova_results
 ```
 
 
 ```{r, Yield}
+#Examine if data can be combined across years
+yield.aov <- aov(Yield_kg_hect ~ Year, data = master.df)
+summary(yield.aov)
+TukeyHSD(yield.aov)
+#Significantly higher yields in 2016 than in any other year. Check test weight too
+TW.aov <- aov(Test_weight_kg_hL ~ Year, data = master.df)
+summary(TW.aov)
+TukeyHSD(TW.aov)
+#Incorporate this info into the data frame for plotting
+master.df$Year
+master.df$YearTukey <- rep(c("A","B","B","B"), each = 168)
+master.df$Test_weight_kg_hL
+master.df$Test_weight_kg_hLTukey <- rep(c("A","C","B","C"), each = 168)
 library(ggplot2)
 library(ggpubr)
 #install.packages("forcats")
@@ -144,7 +195,7 @@ p1 <- ggplot(data = master.df, aes(x = management, y = Yield_kg_hect/1000,
                      label.y = c(11,12.5,14), symnum.args = symnum.args) +
   geom_jitter(width = 0.1, alpha = 0.5) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
-  facet_grid(~Year, switch="x") +
+  facet_grid(~Year + YearTukey, switch="x") +
   ylab("Yield\n(thousands of kg / hectare)") +
   #ggtitle("") +
   theme_bw() + guides(fill=guide_legend("Management Intensity")) +
@@ -173,7 +224,7 @@ p2 <- ggplot(data = master.df, aes(x = management, y = Test_weight_kg_hL,
   geom_jitter(width = 0.1, alpha = 0.5) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
   geom_hline(aes(yintercept=75), linetype = 2) +
-  facet_grid(~Year, switch="x") +
+  facet_grid(~Year + Test_weight_kg_hLTukey, switch="x") +
   ylab("Wheat test weight\n(kg / hectaliter)") +
   #ggtitle("") +
   theme_bw() + guides(fill=guide_legend("Management Intensity")) +
