@@ -96,6 +96,7 @@ summary(yield.cubic)
 ```{r, get means, stats}
 colnames(master.df)
 #Use this function to get variety x management x year means
+#Replace "Test_weight_kg_hL" with "Yield_kg_hect" in the function if you want the yield results
 #Just replace "Pro 200" with whatever variety you're interested in
 get_mean <- function(var, man, yr) {
   temp.df <- with(master.df, master.df[variety == as.character(var) & 
@@ -117,6 +118,7 @@ get_mean("Pro 200","MidLevel","2019")
 get_mean("Pro 200","HighLevel","2019")
 
 #Use this function to variety means across years
+#Replace "Test_weight_kg_hL" with "Yield_kg_hect" in the function if you want the yield results
 #Just replace "Pro 200" with whatever variety you're interested in
 get_mean2 <- function(var) {
   temp.df <- with(master.df, master.df[variety == as.character(var),])
@@ -125,22 +127,60 @@ get_mean2 <- function(var) {
 get_mean2("Pro 200")
 
 #Get Tukey group letters for management effects of variety within year
+#Replace "Test_weight_kg_hL" with "Yield_kg_hect" in the function if you want the yield results
 #Just replace "Pro 200" with whatever variety you're interested in
-AOVTukey <- function(var, yr) {
+library(lme4)
+library(lmerTest)
+library(emmeans)
+#Use these functions to dtermine tukey groups for Yield. 
+#Change "Yield_kg_hect" to "Test_weight_kg_hL" to get test weight data
+AOVTukey_withinvar <- function(var, yr) {
   temp.df <- with(master.df, master.df[variety == as.character(var) &
                                        Year == as.character(yr),])
-  nova <- aov(Test_weight_kg_hL ~ management, data = temp.df)
-  TukeyHSD(nova, ordered = TRUE)
+  mod <- lmer(Yield_kg_hect ~ management +
+                                  (1|rep), data = temp.df)
+  mod.em <- emmeans(mod, ~ management)
+  mod.results <- multcomp::cld(mod.em, 
+                            alpha = 0.05, 
+                            adjust = "tuk", 
+                            Letters = letters, 
+                            reversed = TRUE, 
+                            details = TRUE)
+  mod.results$emmeans
 }
-AOVTukey("Pro 200", "2016")
-AOVTukey("Pro 200", "2017")
-AOVTukey("Pro 200", "2018")
-AOVTukey("Pro 200", "2019")
+AOVTukey_acrossvar <- function(yr) {
+  temp.df <- with(master.df, master.df[Year == as.character(yr),])
+  mod <- lmer(Yield_kg_hect ~ management +
+                                  (1|rep) +
+                                  (1|variety), data = temp.df)
+  mod.em <- emmeans(mod, ~ management)
+  mod.results <- multcomp::cld(mod.em, 
+                            alpha = 0.05, 
+                            adjust = "tuk", 
+                            Letters = letters, 
+                            reversed = TRUE, 
+                            details = TRUE)
+  mod.results$emmeans
+}
+
+#Use this code to determine tukey groups within var. Just change "Pro 380" with whatever variety you desire.
+AOVTukey_withinvar("Pro 380", "2016")
+AOVTukey_withinvar("Pro 380", "2017")
+AOVTukey_withinvar("Pro 380", "2018")
+AOVTukey_withinvar("Pro 380", "2019")
+AOVTukey_acrossvar("2016")
+AOVTukey_acrossvar("2017")
+AOVTukey_acrossvar("2018")
+AOVTukey_acrossvar("2019")
 
 #Get Tukey group letters for variety effects across years
+#Change "Yield_kg_hect" to "Test_weight_kg_hL" to get test weight data
 library(emmeans)
 library(multcomp)
-allvar_lm <- lm(Test_weight_kg_hL ~ variety, data = master.df)
+allvar_lm <- lmer(Yield_kg_hect ~ variety +
+                                      (1|rep) +
+                                      (1|Year) +
+                                      (1|rep:Year), data = master.df)
 allvar_anova <- emmeans(allvar_lm, ~variety)
 allvar_anova_results <- multcomp::cld(allvar_anova, 
                             alpha = 0.05, 
@@ -148,7 +188,7 @@ allvar_anova_results <- multcomp::cld(allvar_anova,
                             Letters = letters, 
                             reversed = TRUE, 
                             details = TRUE)
-allvar_anova_results
+allvar_anova_results2$emmeans
 ```
 
 
