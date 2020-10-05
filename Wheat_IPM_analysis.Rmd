@@ -137,7 +137,7 @@ library(emmeans)
 AOVTukey_withinvar <- function(var, yr) {
   temp.df <- with(master.df, master.df[variety == as.character(var) &
                                        Year == as.character(yr),])
-  mod <- lmer(Yield_kg_hect ~ management +
+  mod <- lmer(Test_weight_kg_hL ~ management +
                                   (1|rep), data = temp.df)
   mod.em <- emmeans(mod, ~ management)
   mod.results <- multcomp::cld(mod.em, 
@@ -150,7 +150,7 @@ AOVTukey_withinvar <- function(var, yr) {
 }
 AOVTukey_acrossvar <- function(yr) {
   temp.df <- with(master.df, master.df[Year == as.character(yr),])
-  mod <- lmer(Yield_kg_hect ~ management +
+  mod <- lmer(Test_weight_kg_hL ~ management +
                                   (1|rep) +
                                   (1|variety), data = temp.df)
   mod.em <- emmeans(mod, ~ management)
@@ -164,10 +164,10 @@ AOVTukey_acrossvar <- function(yr) {
 }
 
 #Use this code to determine tukey groups within var. Just change "Pro 380" with whatever variety you desire.
-AOVTukey_withinvar("Pro 380", "2016")
-AOVTukey_withinvar("Pro 380", "2017")
-AOVTukey_withinvar("Pro 380", "2018")
-AOVTukey_withinvar("Pro 380", "2019")
+AOVTukey_withinvar("SRW9606", "2016")
+AOVTukey_withinvar("SRW9606", "2017")
+AOVTukey_withinvar("SRW9606", "2018")
+AOVTukey_withinvar("SRW9606", "2019")
 AOVTukey_acrossvar("2016")
 AOVTukey_acrossvar("2017")
 AOVTukey_acrossvar("2018")
@@ -180,7 +180,8 @@ library(multcomp)
 allvar_lm <- lmer(Yield_kg_hect ~ variety +
                                       (1|rep) +
                                       (1|Year) +
-                                      (1|rep:Year), data = master.df)
+                                      (1|management) +
+                                      (1|management:Year), data = master.df)
 allvar_anova <- emmeans(allvar_lm, ~variety)
 allvar_anova_results <- multcomp::cld(allvar_anova, 
                             alpha = 0.05, 
